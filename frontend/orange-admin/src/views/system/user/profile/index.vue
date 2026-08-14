@@ -27,7 +27,7 @@
                      </li>
                      <li class="list-group-item">
                         <svg-icon icon-class="tree" />所属部门
-                        <div class="pull-right" v-if="state.user.dept">{{ state.user.dept.deptName }} / {{ state.postGroup }}</div>
+                        <div class="pull-right" v-if="state.deptPath">{{ state.deptPath }} / {{ state.postGroup }}</div>
                      </li>
                      <li class="list-group-item">
                         <svg-icon icon-class="peoples" />所属角色
@@ -67,13 +67,16 @@ import userAvatar from "./userAvatar"
 import userInfo from "./userInfo"
 import resetPwd from "./resetPwd"
 import { getUserProfile } from "@/api/modules/system/user"
+import { listDept } from "@/api/modules/system/dept"
+import { buildDeptPath } from "@/utils/deptPath"
 
 const route = useRoute()
 const selectedTab = ref("userinfo")
 const state = reactive({
   user: {},
   roleGroup: {},
-  postGroup: {}
+  postGroup: {},
+  deptPath: ''
 })
 
 function getUser() {
@@ -81,6 +84,16 @@ function getUser() {
     state.user = response.data
     state.roleGroup = response.roleGroup
     state.postGroup = response.postGroup
+    resolveDeptPath(state.user.dept)
+  })
+}
+
+function resolveDeptPath(dept) {
+  if (!dept) return
+  listDept().then(res => {
+    state.deptPath = buildDeptPath(dept, res.data || [])
+  }).catch(() => {
+    state.deptPath = dept.deptName || ''
   })
 }
 

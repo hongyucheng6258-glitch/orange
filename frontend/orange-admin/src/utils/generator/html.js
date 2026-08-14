@@ -1,5 +1,5 @@
 /* eslint-disable max-len */
-import { trigger } from './config'
+import { trigger } from './config.js'
 
 let confGlobal
 let someSpanIsNot24

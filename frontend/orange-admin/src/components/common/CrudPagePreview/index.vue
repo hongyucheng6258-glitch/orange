@@ -112,6 +112,9 @@
               <span v-if="col.htmlType === 'datetime'">{{ proxy.parseTime(scope.row[col.javaField], '{y}-{m}-{d}') }}</span>
               <image-preview v-else-if="col.htmlType === 'imageUpload'" :src="scope.row[col.javaField]" :width="50" :height="50" />
               <dict-tag v-else-if="dictOptions(col)" :options="dictOptions(col)" :value="scope.row[col.javaField]" />
+              <el-tag v-else-if="col.htmlType === 'switch'" :type="switchOn(col, scope.row[col.javaField]) ? 'success' : 'info'" effect="plain">
+                {{ switchText(col, scope.row[col.javaField]) }}
+              </el-tag>
               <span v-else>{{ formatCell(scope.row[col.javaField]) }}</span>
             </template>
           </el-table-column>
@@ -182,6 +185,15 @@
                     <el-checkbox v-if="dictOptions(col)" v-for="d in dictOptions(col)" :key="d.value" :value="coerceDictValue(col, d.value)">{{ d.label }}</el-checkbox>
                     <el-checkbox v-else value="1">请选择字典生成</el-checkbox>
                   </el-checkbox-group>
+                  <el-switch
+                    v-else-if="col.htmlType === 'switch'"
+                    v-model="form[col.javaField]"
+                    :active-value="col.switchActiveValue"
+                    :inactive-value="col.switchInactiveValue"
+                    :active-text="col.switchActiveText || undefined"
+                    :inactive-text="col.switchInactiveText || undefined"
+                    :disabled="isPkDisabled(col)"
+                  />
                   <el-date-picker
                     v-else-if="col.htmlType === 'datetime'"
                     v-model="form[col.javaField]"
@@ -233,6 +245,9 @@
               <el-descriptions-item v-for="col in listColumns" :key="col.javaField" :label="colComment(col)">
                 <dict-tag v-if="dictOptions(col)" :options="dictOptions(col)" :value="currentRow[col.javaField]" />
                 <image-preview v-else-if="col.htmlType === 'imageUpload'" :src="currentRow[col.javaField]" :width="50" :height="50" />
+                <el-tag v-else-if="col.htmlType === 'switch'" :type="switchOn(col, currentRow[col.javaField]) ? 'success' : 'info'" effect="plain">
+                  {{ switchText(col, currentRow[col.javaField]) }}
+                </el-tag>
                 <span v-else>{{ formatCell(currentRow[col.javaField]) }}</span>
               </el-descriptions-item>
             </el-descriptions>
@@ -243,7 +258,7 @@
   </div>
 </template>
 
-<script setup name="PagePreview">
+<script setup name="CrudPagePreview">
 import { useDict } from '@/composables/useDict'
 
 const props = defineProps({
@@ -274,11 +289,13 @@ const listColumns = computed(() => props.columns.filter(c => c.isList === '1'))
 const insertColumns = computed(() => props.columns.filter(c => c.isInsert === '1' && c.isPk !== '1'))
 const editColumns = computed(() => props.columns.filter(c => c.isEdit === '1'))
 
-// ========== 字典 ==========
+// ========== 字典 / 选项 ==========
 const dictTypes = [...new Set(props.columns.filter(c => c.dictType).map(c => c.dictType))]
 const dictData = useDict(...dictTypes)
 
+// 列级自定义选项优先，其次使用字典数据
 function dictOptions(col) {
+  if (Array.isArray(col.options) && col.options.length) return col.options
   if (!col.dictType) return null
   return dictData[col.dictType]?.value || null
 }
@@ -286,6 +303,20 @@ function dictOptions(col) {
 function coerceDictValue(col, v) {
   if (col.javaType === 'Integer' || col.javaType === 'Long') return parseInt(v, 10)
   return v
+}
+
+// ========== 开关字段 ==========
+function switchOn(col, v) {
+  const active = col.switchActiveValue
+  if (active !== undefined && v === active) return true
+  if (col.switchInactiveValue !== undefined && v === col.switchInactiveValue) return false
+  return !!v
+}
+
+function switchText(col, v) {
+  const activeText = col.switchActiveText || '开'
+  const inactiveText = col.switchInactiveText || '关'
+  return switchOn(col, v) ? activeText : inactiveText
 }
 
 // ========== 工具 ==========
@@ -529,6 +560,7 @@ const rules = computed(() => {
 
 function defaultFormValue(col) {
   if (col.htmlType === 'checkbox') return []
+  if (col.htmlType === 'switch') return col.switchInactiveValue ?? false
   if (col.htmlType === 'imageUpload') return placeholderImg
   return undefined
 }

@@ -92,6 +92,7 @@ const componentSlot = {
   }
 }
 export default defineComponent({
+  emits: ['update:modelValue'],
 
   // 使用 render 函数
   render() {
@@ -139,6 +140,7 @@ export default defineComponent({
     return h(resolveComponent(this.conf.tag),
       {
         modelValue: this.$attrs.modelValue,
+        'onUpdate:modelValue': value => this.$emit('update:modelValue', value),
         ...dataObject.props,
         ...dataObject.attrs,
         style: {

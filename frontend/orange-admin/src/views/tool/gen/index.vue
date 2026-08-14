@@ -161,7 +161,7 @@ import { listTable, previewTable, getGenTable, delTable, genCode, synchDb } from
 import router from "@/router"
 import importTable from "./importTable"
 import createTable from "./createTable"
-import pagePreview from "./pagePreview"
+import pagePreview from "@/components/common/CrudPagePreview"
 
 const route = useRoute()
 const { proxy } = getCurrentInstance()
