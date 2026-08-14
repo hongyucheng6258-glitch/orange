@@ -1,0 +1,165 @@
+/**
+ * 清新极简主题覆盖层
+ * 统一 Element Plus 组件视觉：浅色底、低饱和点缀、留白
+ * 依据设计文档 docs/superpowers/specs/2026-08-14-fresh-minimal-ui-design.md
+ */
+
+/* ---------- 亮色模式基础变量 ---------- */
+:root {
+  /* 主色（与 settings.js 默认 #3B82F6 联动） */
+  --el-color-primary: #3B82F6;
+  --el-color-primary-light-3: #7DA8F8;
+  --el-color-primary-light-5: #A9C6FB;
+  --el-color-primary-light-7: #D4E3FD;
+  --el-color-primary-light-8: #E6EFFE;
+  --el-color-primary-light-9: #F0F6FF;
+  --el-color-primary-dark-2: #2563EB;
+
+  /* 语义色 */
+  --el-color-success: #10B981;
+  --el-color-warning: #F59E0B;
+  --el-color-danger: #EF4444;
+  --el-color-info: #94A3B8;
+
+  /* 中性色 */
+  --el-text-color-primary: #1D2129;
+  --el-text-color-regular: #4E5969;
+  --el-text-color-secondary: #86909C;
+  --el-text-color-placeholder: #A9AEB8;
+  --el-border-color: #E5E6EB;
+  --el-border-color-light: #EBECF0;
+  --el-border-color-lighter: #F0F1F3;
+  --el-border-color-extra-light: #F5F6F7;
+  --el-fill-color: #F2F3F5;
+  --el-fill-color-light: #F5F6F7;
+  --el-fill-color-lighter: #F8F9FA;
+  --el-fill-color-blank: #FFFFFF;
+  --el-bg-color: #FFFFFF;
+  --el-bg-color-page: #F7F8FA;
+  --el-bg-color-overlay: #FFFFFF;
+
+  /* 圆角 */
+  --el-border-radius-base: 6px;
+  --el-border-radius-small: 4px;
+  --el-border-radius-round: 20px;
+
+  /* 阴影 */
+  --el-box-shadow-light: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --el-box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  /* 页面背景 */
+  --page-bg: #F7F8FA;
+  --card-bg: #FFFFFF;
+  --card-border: #E5E6EB;
+  --hover-bg: #F2F3F5;
+  --primary-soft: #DBEAFE;
+}
+
+/* ---------- 主内容区背景 ---------- */
+.app-main {
+  background-color: var(--page-bg);
+}
+
+/* ---------- 卡片 ---------- */
+.el-card {
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  box-shadow: var(--el-box-shadow-light);
+}
+
+/* ---------- 表格：浅表头、悬停、去斑马纹 ---------- */
+.el-table {
+  --el-table-header-bg-color: #F7F8FA;
+  --el-table-header-text-color: #4E5969;
+  --el-table-border-color: #EBECF0;
+  --el-table-row-hover-bg-color: #F2F3F5;
+  border-radius: 8px;
+
+  th.el-table__cell {
+    font-weight: 600;
+    font-size: 13px;
+  }
+}
+
+/* ---------- 弹窗 ---------- */
+.el-dialog {
+  border-radius: 12px;
+  box-shadow: var(--el-box-shadow);
+}
+
+/* ---------- 表格内操作按钮：文字化 ---------- */
+.el-table .el-button--small.is-link,
+.el-table .el-button--link {
+  padding: 0 4px;
+}
+
+/* ---------- 搜索区卡片化 ---------- */
+.app-search {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+/* ---------- 侧边栏浅色激活态 ---------- */
+.sidebar-container.theme-light {
+  .el-menu-item.is-active {
+    color: var(--el-color-primary) !important;
+    background-color: var(--primary-soft) !important;
+    border-radius: 8px;
+    margin: 2px 8px;
+  }
+}
+
+/* ---------- 标签栏激活态（卡片样式） ---------- */
+.tags-view-container:not(.tags-view-container--chrome) {
+  .tags-view-wrapper .tags-view-item {
+    border-radius: 6px;
+    border-color: var(--card-border);
+  }
+  .tags-view-wrapper .tags-view-item.active {
+    background-color: var(--primary-soft) !important;
+    border-color: var(--el-color-primary) !important;
+    color: var(--el-color-primary) !important;
+
+    &::before {
+      background: var(--el-color-primary) !important;
+    }
+  }
+}
+
+/* ---------- 暗黑模式微调 ---------- */
+html.dark {
+  --page-bg: #141414;
+  --card-bg: #1d1e1f;
+  --card-border: #3a3a3a;
+  --hover-bg: #2d2d2d;
+  --primary-soft: #18212b;
+
+  .app-main {
+    background-color: var(--page-bg);
+  }
+
+  .el-card {
+    border-color: var(--card-border);
+  }
+
+  .sidebar-container.theme-light {
+    .el-menu-item.is-active {
+      background-color: var(--primary-soft) !important;
+    }
+  }
+}
+
+/* ---------- 顶部进度条（NProgress）主题化 ---------- */
+#nprogress .bar {
+  background: var(--el-color-primary) !important;
+  height: 4px !important;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.4), 0 0 4px rgba(59, 130, 246, 0.4) !important;
+}
+
+#nprogress .peg {
+  box-shadow: 0 0 10px var(--el-color-primary), 0 0 5px var(--el-color-primary) !important;
+}
+

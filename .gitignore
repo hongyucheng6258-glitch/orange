@@ -1,0 +1,30 @@
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Build outputs and dependencies
+**/target/
+**/build/
+**/dist/
+**/node_modules/
+*.class
+*.jar
+
+# Runtime data and logs
+**/uploadPath/
+*.log
+logs/
+
+# Local temporary artifacts
+.trae-html-share-packages/
+backup/
+captcha_browser*.png
+captcha_browser*.jpg
+captcha_fast*.png
+captcha_fast*.jpg
+
+# Local environment overrides
+.env.local
+.env.*.local
