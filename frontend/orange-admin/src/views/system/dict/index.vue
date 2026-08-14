@@ -139,7 +139,7 @@
       />
 
       <!-- 添加或修改参数配置对话框 -->
-      <el-dialog :title="title" v-model="open" width="500px" append-to-body>
+      <el-dialog :title="title" v-model="open" width="min(500px, calc(100vw - 24px))" append-to-body>
          <el-form ref="dictRef" :model="form" :rules="rules" label-width="100px">
             <el-form-item label="字典名称" prop="dictName">
                <el-input v-model="form.dictName" placeholder="请输入字典名称" />
@@ -170,7 +170,7 @@
          </el-form>
          <template #footer>
             <div class="dialog-footer">
-               <el-button type="primary" @click="submitForm">确 定</el-button>
+               <el-button type="primary" :loading="submitting" @click="submitForm">确 定</el-button>
                <el-button @click="cancel">取 消</el-button>
             </div>
          </template>
@@ -200,6 +200,7 @@ const title = ref("")
 const dateRange = ref([])
 const drawerVisible = ref(false)
 const drawerRow = ref({})
+const submitting = ref(false)
 
 const data = reactive({
   form: {},
@@ -224,6 +225,7 @@ function getList() {
   listType(proxy.addDateRange(queryParams.value, dateRange.value)).then(response => {
     typeList.value = response.rows
     total.value = response.total
+  }).finally(() => {
     loading.value = false
   })
 }
@@ -299,17 +301,22 @@ function handleUpdate(row) {
 function submitForm() {
   proxy.$refs["dictRef"].validate(valid => {
     if (valid) {
+      submitting.value = true
       if (form.value.dictId != undefined) {
         updateType(form.value).then(response => {
           proxy.$modal.msgSuccess("修改成功")
           open.value = false
           getList()
+        }).finally(() => {
+          submitting.value = false
         })
       } else {
         addType(form.value).then(response => {
           proxy.$modal.msgSuccess("新增成功")
           open.value = false
           getList()
+        }).finally(() => {
+          submitting.value = false
         })
       }
     }

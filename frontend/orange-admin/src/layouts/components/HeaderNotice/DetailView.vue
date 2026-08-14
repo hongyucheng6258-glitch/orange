@@ -42,7 +42,7 @@
         </div>
 
         <div class="notice-body">
-          <div v-if="hasContent" class="notice-content" v-html="detail.noticeContent" />
+          <div v-if="hasContent" class="notice-content" v-html="sanitizedContent" />
           <div v-else class="notice-empty notice-empty--inner">
             <el-icon><Document /></el-icon> 暂无内容
           </div>
@@ -54,10 +54,13 @@
 
 <script setup>
 import { getNotice } from '@/api/modules/system/notice'
+import { sanitizeHtml } from '@/utils/sanitize'
 
 const visible = ref(false)
 const loading = ref(false)
 const detail = ref(null)
+
+const sanitizedContent = computed(() => sanitizeHtml(detail.value && detail.value.noticeContent))
 
 const isStatusNormal = computed(() => {
   const status = detail.value && detail.value.status

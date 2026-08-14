@@ -117,8 +117,8 @@ const codeUrl = ref("")
 const loading = ref(false)
 // 验证码开关
 const captchaEnabled = ref(true)
-// 注册开关
-const register = ref(true)
+// 注册开关（由后端 sys.account.registerUser 配置决定）
+const register = ref(false)
 const redirect = ref(undefined)
 
 watch(route, (newRoute) => {
@@ -164,6 +164,7 @@ function handleLogin() {
 function getCode() {
   getCodeImg().then(res => {
     captchaEnabled.value = res.captchaEnabled === undefined ? true : res.captchaEnabled
+    register.value = res.registerUser === undefined ? false : res.registerUser
     if (captchaEnabled.value) {
       codeUrl.value = "data:image/gif;base64," + res.img
       loginForm.value.uuid = res.uuid
@@ -280,7 +281,8 @@ getCookie()
 }
 
 .login-card {
-  width: 380px;
+  width: 100%;
+  max-width: 380px;
 }
 
 .login-title {
@@ -336,6 +338,28 @@ getCookie()
   font-family: Arial;
   font-size: 12px;
   letter-spacing: 1px;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .login-brand {
+    display: none;
+  }
+
+  .login-panel {
+    padding: 24px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    max-width: 100%;
+  }
+
+  .login-form .el-input,
+  .login-form .el-button {
+    height: 42px;
+  }
 }
 
 /* 暗黑模式 */

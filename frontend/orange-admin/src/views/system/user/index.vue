@@ -91,7 +91,7 @@
     </div>
 
     <!-- 添加或修改用户配置对话框 -->
-    <el-dialog :title="title" v-model="open" width="600px" append-to-body>
+    <el-dialog :title="title" v-model="open" width="min(600px, calc(100vw - 24px))" append-to-body>
       <el-form :model="form" :rules="rules" ref="userRef" label-width="80px">
         <el-row>
           <el-col :span="12">
@@ -171,7 +171,7 @@
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button type="primary" @click="submitForm">确 定</el-button>
+          <el-button type="primary" :loading="submitting" @click="submitForm">确 定</el-button>
           <el-button @click="cancel">取 消</el-button>
         </div>
       </template>
@@ -199,6 +199,7 @@ const { sys_normal_disable, sys_user_sex } = useDict("sys_normal_disable", "sys_
 const userList = ref([])
 const open = ref(false)
 const loading = ref(true)
+const submitting = ref(false)
 const showSearch = ref(true)
 const ids = ref([])
 const single = ref(true)
@@ -246,9 +247,10 @@ const { queryParams, form, rules } = toRefs(data)
 function getList() {
   loading.value = true
   listUser(proxy.addDateRange(queryParams.value, dateRange.value)).then(res => {
-    loading.value = false
     userList.value = res.rows
     total.value = res.total
+  }).finally(() => {
+    loading.value = false
   })
 }
 
@@ -432,17 +434,22 @@ function handleUpdate(row) {
 function submitForm() {
   proxy.$refs["userRef"].validate(valid => {
     if (valid) {
+      submitting.value = true
       if (form.value.userId != undefined) {
         updateUser(form.value).then(() => {
           proxy.$modal.msgSuccess("修改成功")
           open.value = false
           getList()
+        }).finally(() => {
+          submitting.value = false
         })
       } else {
         addUser(form.value).then(() => {
           proxy.$modal.msgSuccess("新增成功")
           open.value = false
           getList()
+        }).finally(() => {
+          submitting.value = false
         })
       }
     }

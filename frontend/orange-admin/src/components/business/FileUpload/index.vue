@@ -156,21 +156,20 @@ function handleExceed() {
 // 上传失败
 function handleUploadError(err) {
   proxy.$modal.msgError("上传文件失败")
-  proxy.$modal.closeLoading()
+  number.value--
+  uploadedSuccessfully()
 }
 
 // 上传成功回调
 function handleUploadSuccess(res, file) {
   if (res.code === 200) {
     uploadList.value.push({ name: res.fileName, url: res.fileName })
-    uploadedSuccessfully()
   } else {
-    number.value--
-    proxy.$modal.closeLoading()
     proxy.$modal.msgError(res.msg)
     proxy.$refs.fileUpload.handleRemove(file)
-    uploadedSuccessfully()
+    number.value--
   }
+  uploadedSuccessfully()
 }
 
 // 删除文件
@@ -179,12 +178,11 @@ function handleDelete(index) {
   emit("update:modelValue", listToString(fileList.value))
 }
 
-// 上传结束处理
+// 上传结束处理：成功与失败文件都完成后统一收尾
 function uploadedSuccessfully() {
-  if (number.value > 0 && uploadList.value.length === number.value) {
+  if (number.value === 0) {
     fileList.value = fileList.value.filter(f => f.url !== undefined).concat(uploadList.value)
     uploadList.value = []
-    number.value = 0
     emit("update:modelValue", listToString(fileList.value))
     proxy.$modal.closeLoading()
   }

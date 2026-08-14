@@ -45,8 +45,18 @@
                 <svg-icon class="menu-icon" :icon-class="item.icon" />
               </div>
               <div class="search-info" @click="change(item)">
-                <div class="menu-title" v-html="highlightText(item.title.join(' / '))"></div>
-                <div class="menu-path" v-html="highlightText(item.path)"></div>
+                <div class="menu-title">
+                  <template v-for="(part, i) in splitHighlight(item.title.join(' / '))" :key="i">
+                    <mark v-if="part.highlight" class="highlight">{{ part.text }}</mark>
+                    <template v-else>{{ part.text }}</template>
+                  </template>
+                </div>
+                <div class="menu-path">
+                  <template v-for="(part, i) in splitHighlight(item.path)" :key="i">
+                    <mark v-if="part.highlight" class="highlight">{{ part.text }}</mark>
+                    <template v-else>{{ part.text }}</template>
+                  </template>
+                </div>
               </div>
               <svg-icon icon-class="enter" v-show="index === activeIndex" />
             </div>
@@ -224,12 +234,19 @@ function selectActiveResult() {
   }
 }
 
-function highlightText(text) {
-  if (!text) return ''
-  if (!search.value) return text
+// 将文本按搜索关键词拆分为片段，返回 [{ text, highlight }]，渲染时不再拼接 HTML
+function splitHighlight(text) {
+  if (!text) return [{ text: '', highlight: false }]
+  if (!search.value) return [{ text, highlight: false }]
   const keyword = escapeRegExp(search.value)
-  const reg = new RegExp(`(${keyword})`, 'gi')
-  return text.replace(reg, '<span class="highlight">$1</span>')
+  const parts = String(text).split(new RegExp(`(${keyword})`, 'gi'))
+  return parts
+    .filter(part => part !== undefined && part !== '')
+    .map((part, idx) => ({
+      text: part,
+      // split 含捕获组时，奇数索引为匹配到的关键词
+      highlight: idx % 2 === 1
+    }))
 }
 
 function escapeRegExp(str) {
@@ -250,12 +267,14 @@ watch(searchPool, (list) => {
   padding: 6px !important;
 }
 
-:deep(.highlight) {
+.highlight {
   color: red;
   font-weight: 600;
+  background: none;
+  padding: 0;
 }
 
-:deep(.is-active .highlight) {
+.is-active .highlight {
   color: rgba(255, 255, 255, 0.9);
   font-weight: 600;
 }

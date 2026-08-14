@@ -101,7 +101,7 @@
       </el-table>
 
       <!-- 添加或修改菜单对话框 -->
-      <el-dialog :title="title" v-model="open" width="680px" append-to-body>
+      <el-dialog :title="title" v-model="open" width="min(680px, calc(100vw - 24px))" append-to-body>
          <el-form ref="menuRef" :model="form" :rules="rules" label-width="100px">
             <el-row>
                <el-col :span="24">
@@ -297,7 +297,7 @@
          </el-form>
          <template #footer>
             <div class="dialog-footer">
-               <el-button type="primary" @click="submitForm">确 定</el-button>
+               <el-button type="primary" :loading="submitting" @click="submitForm">确 定</el-button>
                <el-button @click="cancel">取 消</el-button>
             </div>
          </template>
@@ -316,6 +316,7 @@ const { sys_show_hide, sys_normal_disable } = useDict("sys_show_hide", "sys_norm
 const menuList = ref([])
 const open = ref(false)
 const loading = ref(true)
+const submitting = ref(false)
 const showSearch = ref(true)
 const title = ref("")
 const menuOptions = ref([])
@@ -345,6 +346,7 @@ function getList() {
   listMenu(queryParams.value).then(response => {
     menuList.value = proxy.handleTree(response.data, "menuId")
     recordOriginalOrders(menuList.value)
+  }).finally(() => {
     loading.value = false
   })
 }
@@ -440,17 +442,22 @@ async function handleUpdate(row) {
 function submitForm() {
   proxy.$refs["menuRef"].validate(valid => {
     if (valid) {
+      submitting.value = true
       if (form.value.menuId != undefined) {
         updateMenu(form.value).then(response => {
           proxy.$modal.msgSuccess("修改成功")
           open.value = false
           getList()
+        }).finally(() => {
+          submitting.value = false
         })
       } else {
         addMenu(form.value).then(response => {
           proxy.$modal.msgSuccess("新增成功")
           open.value = false
           getList()
+        }).finally(() => {
+          submitting.value = false
         })
       }
     }

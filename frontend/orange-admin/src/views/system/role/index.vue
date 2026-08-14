@@ -140,7 +140,7 @@
       />
 
       <!-- 添加或修改角色配置对话框 -->
-      <el-dialog :title="title" v-model="open" width="500px" append-to-body>
+      <el-dialog :title="title" v-model="open" width="min(500px, calc(100vw - 24px))" append-to-body>
          <el-form ref="roleRef" :model="form" :rules="rules" label-width="100px">
             <el-form-item label="角色名称" prop="roleName">
                <el-input v-model="form.roleName" placeholder="请输入角色名称" />
@@ -189,14 +189,14 @@
          </el-form>
          <template #footer>
             <div class="dialog-footer">
-               <el-button type="primary" @click="submitForm">确 定</el-button>
+               <el-button type="primary" :loading="submitting" @click="submitForm">确 定</el-button>
                <el-button @click="cancel">取 消</el-button>
             </div>
          </template>
       </el-dialog>
 
       <!-- 分配角色数据权限对话框 -->
-      <el-dialog :title="title" v-model="openDataScope" width="500px" append-to-body>
+      <el-dialog :title="title" v-model="openDataScope" width="min(500px, calc(100vw - 24px))" append-to-body>
          <el-form :model="form" label-width="80px">
             <el-form-item label="角色名称">
                <el-input v-model="form.roleName" :disabled="true" />
@@ -252,6 +252,7 @@ const { sys_normal_disable } = useDict("sys_normal_disable")
 const roleList = ref([])
 const open = ref(false)
 const loading = ref(true)
+const submitting = ref(false)
 const showSearch = ref(true)
 const ids = ref([])
 const single = ref(true)
@@ -302,6 +303,7 @@ function getList() {
   listRole(proxy.addDateRange(queryParams.value, dateRange.value)).then(response => {
     roleList.value = response.rows
     total.value = response.total
+  }).finally(() => {
     loading.value = false
   })
 }
@@ -510,12 +512,15 @@ function getMenuAllCheckedKeys() {
 function submitForm() {
   proxy.$refs["roleRef"].validate(valid => {
     if (valid) {
+      submitting.value = true
       if (form.value.roleId != undefined) {
         form.value.menuIds = getMenuAllCheckedKeys()
         updateRole(form.value).then(() => {
           proxy.$modal.msgSuccess("修改成功")
           open.value = false
           getList()
+        }).finally(() => {
+          submitting.value = false
         })
       } else {
         form.value.menuIds = getMenuAllCheckedKeys()
@@ -523,6 +528,8 @@ function submitForm() {
           proxy.$modal.msgSuccess("新增成功")
           open.value = false
           getList()
+        }).finally(() => {
+          submitting.value = false
         })
       }
     }

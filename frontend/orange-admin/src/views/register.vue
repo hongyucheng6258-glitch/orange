@@ -165,6 +165,12 @@ function handleRegister() {
 function getCode() {
   getCodeImg().then(res => {
     captchaEnabled.value = res.captchaEnabled === undefined ? true : res.captchaEnabled
+    // 注册开关由后端配置控制
+    if (res.registerUser === false) {
+      proxy.$modal.msgError("注册功能暂未开放")
+      router.push("/login")
+      return
+    }
     if (captchaEnabled.value) {
       codeUrl.value = "data:image/gif;base64," + res.img
       registerForm.value.uuid = res.uuid
@@ -269,7 +275,8 @@ getCode()
 }
 
 .register-card {
-  width: 380px;
+  width: 100%;
+  max-width: 380px;
 }
 
 .register-title {
@@ -325,6 +332,28 @@ getCode()
   font-family: Arial;
   font-size: 12px;
   letter-spacing: 1px;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .register-brand {
+    display: none;
+  }
+
+  .register-panel {
+    padding: 24px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .register-card {
+    max-width: 100%;
+  }
+
+  .register-form .el-input,
+  .register-form .el-button {
+    height: 42px;
+  }
 }
 
 /* 暗黑模式 */

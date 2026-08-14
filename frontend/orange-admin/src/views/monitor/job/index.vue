@@ -139,7 +139,7 @@
       />
 
       <!-- 添加或修改定时任务对话框 -->
-      <el-dialog :title="title" v-model="open" width="820px" append-to-body>
+      <el-dialog :title="title" v-model="open" width="min(820px, calc(100vw - 24px))" append-to-body>
          <el-form ref="jobRef" :model="form" :rules="rules" label-width="120px">
             <el-row>
                <el-col :span="12">
@@ -223,7 +223,7 @@
          </el-form>
          <template #footer>
             <div class="dialog-footer">
-               <el-button type="primary" @click="submitForm">确 定</el-button>
+               <el-button type="primary" :loading="submitting" @click="submitForm">确 定</el-button>
                <el-button @click="cancel">取 消</el-button>
             </div>
          </template>
@@ -259,6 +259,7 @@ const title = ref("")
 const openView = ref(false)
 const openCron = ref(false)
 const expression = ref("")
+const submitting = ref(false)
 
 const data = reactive({
   form: {},
@@ -284,6 +285,7 @@ function getList() {
   listJob(queryParams.value).then(response => {
     jobList.value = response.rows
     total.value = response.total
+  }).finally(() => {
     loading.value = false
   })
 }
@@ -396,17 +398,22 @@ function handleUpdate(row) {
 function submitForm() {
   proxy.$refs["jobRef"].validate(valid => {
     if (valid) {
+      submitting.value = true
       if (form.value.jobId != undefined) {
         updateJob(form.value).then(response => {
           proxy.$modal.msgSuccess("修改成功")
           open.value = false
           getList()
+        }).finally(() => {
+          submitting.value = false
         })
       } else {
         addJob(form.value).then(response => {
           proxy.$modal.msgSuccess("新增成功")
           open.value = false
           getList()
+        }).finally(() => {
+          submitting.value = false
         })
       }
     }

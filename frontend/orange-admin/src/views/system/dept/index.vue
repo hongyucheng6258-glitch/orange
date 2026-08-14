@@ -90,7 +90,7 @@
       </el-table>
 
       <!-- 添加或修改部门对话框 -->
-      <el-dialog :title="title" v-model="open" width="600px" append-to-body>
+      <el-dialog :title="title" v-model="open" width="min(600px, calc(100vw - 24px))" append-to-body>
          <el-form ref="deptRef" :model="form" :rules="rules" label-width="80px">
             <el-row>
                <el-col :span="24" v-if="form.parentId > 0">
@@ -145,7 +145,7 @@
          </el-form>
          <template #footer>
             <div class="dialog-footer">
-               <el-button type="primary" @click="submitForm">确 定</el-button>
+               <el-button type="primary" :loading="submitting" @click="submitForm">确 定</el-button>
                <el-button @click="cancel">取 消</el-button>
             </div>
          </template>
@@ -162,6 +162,7 @@ const { sys_normal_disable } = useDict("sys_normal_disable")
 const deptList = ref([])
 const open = ref(false)
 const loading = ref(true)
+const submitting = ref(false)
 const showSearch = ref(true)
 const title = ref("")
 const deptOptions = ref([])
@@ -192,6 +193,7 @@ function getList() {
   listDept(queryParams.value).then(response => {
     deptList.value = proxy.handleTree(response.data, "deptId")
     recordOriginalOrders(deptList.value)
+  }).finally(() => {
     loading.value = false
   })
 }
@@ -268,17 +270,22 @@ function handleUpdate(row) {
 function submitForm() {
   proxy.$refs["deptRef"].validate(valid => {
     if (valid) {
+      submitting.value = true
       if (form.value.deptId != undefined) {
         updateDept(form.value).then(response => {
           proxy.$modal.msgSuccess("修改成功")
           open.value = false
           getList()
+        }).finally(() => {
+          submitting.value = false
         })
       } else {
         addDept(form.value).then(response => {
           proxy.$modal.msgSuccess("新增成功")
           open.value = false
           getList()
+        }).finally(() => {
+          submitting.value = false
         })
       }
     }
