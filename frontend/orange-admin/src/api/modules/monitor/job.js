@@ -9,6 +9,14 @@ export function listJob(query) {
   })
 }
 
+// 查询可用的任务模板（快捷创建用）
+export function listJobTemplates() {
+  return request({
+    url: '/monitor/job/templates',
+    method: 'get'
+  })
+}
+
 // 查询定时任务调度详细
 export function getJob(jobId) {
   return request({

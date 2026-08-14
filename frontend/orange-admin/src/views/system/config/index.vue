@@ -130,29 +130,134 @@
       />
 
       <!-- 添加或修改参数配置对话框 -->
-      <el-dialog :title="title" v-model="open" width="min(500px, calc(100vw - 24px))" append-to-body>
-         <el-form ref="configRef" :model="form" :rules="rules" label-width="80px">
-            <el-form-item label="参数名称" prop="configName">
-               <el-input v-model="form.configName" placeholder="请输入参数名称" />
-            </el-form-item>
-            <el-form-item label="参数键名" prop="configKey">
-               <el-input v-model="form.configKey" placeholder="请输入参数键名" />
-            </el-form-item>
-            <el-form-item label="参数键值" prop="configValue">
-               <el-input v-model="form.configValue" type="textarea" placeholder="请输入参数键值" />
-            </el-form-item>
-            <el-form-item label="系统内置" prop="configType">
-               <el-radio-group v-model="form.configType">
-                  <el-radio
-                     v-for="dict in sys_yes_no"
-                     :key="dict.value"
-                     :value="dict.value"
-                  >{{ dict.label }}</el-radio>
-               </el-radio-group>
-            </el-form-item>
-            <el-form-item label="备注" prop="remark">
-               <el-input v-model="form.remark" type="textarea" placeholder="请输入内容" />
-            </el-form-item>
+      <el-dialog :title="title" v-model="open" width="min(640px, calc(100vw - 24px))" append-to-body>
+         <div v-if="!form.configId" class="add-mode-bar">
+            <span class="add-mode-label">添加方式：</span>
+            <el-radio-group v-model="addMode">
+               <el-radio-button value="template">从模板添加</el-radio-button>
+               <el-radio-button value="custom">自定义参数</el-radio-button>
+            </el-radio-group>
+         </div>
+
+         <el-form ref="configRef" :model="form" :rules="rules" label-width="90px">
+            <!-- 模板模式（仅新增时显示） -->
+            <template v-if="addMode === 'template' && !form.configId">
+               <el-form-item label="参数分类">
+                  <el-select v-model="templateCategory" placeholder="请选择参数分类" style="width: 100%" @change="handleCategoryChange">
+                     <el-option v-for="c in configCategories" :key="c.value" :label="c.label" :value="c.value" />
+                  </el-select>
+               </el-form-item>
+               <el-form-item label="参数模板">
+                  <el-select v-model="templateKey" placeholder="请选择参数模板" filterable style="width: 100%" @change="handleTemplateSelect">
+                     <el-option v-for="t in filteredTemplates" :key="t.key" :label="t.name" :value="t.key" :disabled="isTemplateExists(t.key)">
+                        <span>{{ t.name }}</span>
+                        <el-tag v-if="isTemplateExists(t.key)" type="warning" size="small" class="tpl-tag">已添加</el-tag>
+                        <el-tag v-else-if="t.status === '待接入'" type="info" size="small" class="tpl-tag">待接入</el-tag>
+                     </el-option>
+                  </el-select>
+               </el-form-item>
+               <el-form-item v-if="selectedTemplate" label="用途说明">
+                  <div class="tpl-desc">
+                     <div class="tpl-desc-text">{{ selectedTemplate.description }}</div>
+                     <div class="tpl-desc-meta">
+                        <el-tag :type="selectedTemplate.status === '已接入' ? 'success' : 'info'" size="small">{{ selectedTemplate.status }}</el-tag>
+                        <span>影响范围：{{ selectedTemplate.effectiveScope }}</span>
+                     </div>
+                  </div>
+               </el-form-item>
+               <el-form-item label="参数名称" prop="configName">
+                  <el-input v-model="form.configName" readonly />
+               </el-form-item>
+               <el-form-item label="参数键名" prop="configKey">
+                  <el-input v-model="form.configKey" readonly />
+               </el-form-item>
+               <el-form-item label="参数键值" prop="configValue">
+                  <el-switch
+                     v-if="selectedTemplate && selectedTemplate.valueType === 'boolean'"
+                     v-model="form.configValue"
+                     active-value="true"
+                     inactive-value="false"
+                     active-text="开启"
+                     inactive-text="关闭"
+                  />
+                  <el-select v-else-if="selectedTemplate && selectedTemplate.valueType === 'select'" v-model="form.configValue" style="width: 100%">
+                     <el-option v-for="o in selectedTemplate.options" :key="o.value" :label="o.label" :value="o.value" />
+                  </el-select>
+                  <el-input-number
+                     v-else-if="selectedTemplate && selectedTemplate.valueType === 'number'"
+                     v-model="form.configValue"
+                     :min="selectedTemplate.min || 0"
+                     :max="selectedTemplate.max || 99999"
+                     controls-position="right"
+                  />
+                  <el-input
+                     v-else-if="selectedTemplate && selectedTemplate.valueType === 'password'"
+                     v-model="form.configValue"
+                     type="password"
+                     show-password
+                     placeholder="请输入参数键值"
+                  />
+                  <el-input
+                     v-else-if="selectedTemplate && selectedTemplate.valueType === 'textarea'"
+                     v-model="form.configValue"
+                     type="textarea"
+                     :rows="3"
+                     placeholder="请输入参数键值"
+                  />
+                  <el-input v-else v-model="form.configValue" placeholder="请输入参数键值" />
+               </el-form-item>
+               <el-form-item label="系统内置">
+                  <el-radio-group v-model="form.configType" disabled>
+                     <el-radio value="Y">是</el-radio>
+                     <el-radio value="N">否</el-radio>
+                  </el-radio-group>
+               </el-form-item>
+               <el-form-item label="备注" prop="remark">
+                  <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入内容" />
+               </el-form-item>
+            </template>
+
+            <!-- 自定义模式 / 编辑模式 -->
+            <template v-else>
+               <el-alert
+                  v-if="editTemplate"
+                  type="info"
+                  :closable="false"
+                  show-icon
+                  class="tpl-edit-alert"
+                  :title="editTemplate.description"
+               />
+               <el-form-item label="参数名称" prop="configName">
+                  <el-input v-model="form.configName" placeholder="请输入参数名称" :readonly="lockKeyName" />
+               </el-form-item>
+               <el-form-item label="参数键名" prop="configKey">
+                  <el-input v-model="form.configKey" placeholder="请输入参数键名" :readonly="lockKeyName">
+                     <template v-if="lockKeyName" #append>内置参数</template>
+                  </el-input>
+               </el-form-item>
+               <el-form-item label="参数键值" prop="configValue">
+                  <el-input v-model="form.configValue" type="textarea" :rows="3" placeholder="请输入参数键值" />
+               </el-form-item>
+               <el-form-item label="系统内置" prop="configType">
+                  <el-radio-group v-model="form.configType">
+                     <el-radio
+                        v-for="dict in sys_yes_no"
+                        :key="dict.value"
+                        :value="dict.value"
+                     >{{ dict.label }}</el-radio>
+                  </el-radio-group>
+               </el-form-item>
+               <el-form-item label="备注" prop="remark">
+                  <el-input v-model="form.remark" type="textarea" placeholder="请输入内容" />
+               </el-form-item>
+               <el-alert
+                  v-if="!form.configId"
+                  type="info"
+                  :closable="false"
+                  show-icon
+                  title="参数键名建议使用「模块.功能.属性」格式，例如 game.item.defaultStatus；键值为程序实际读取的值，最长 500 字符。"
+               />
+            </template>
          </el-form>
          <template #footer>
             <div class="dialog-footer">
@@ -166,6 +271,7 @@
 
 <script setup name="Config">
 import { listConfig, getConfig, delConfig, addConfig, updateConfig, refreshCache } from "@/api/modules/system/config"
+import { configCategories, configTemplates, findTemplateByKey } from "./configTemplates"
 
 const { proxy } = getCurrentInstance()
 const { sys_yes_no } = useDict("sys_yes_no")
@@ -181,6 +287,33 @@ const total = ref(0)
 const title = ref("")
 const dateRange = ref([])
 const submitting = ref(false)
+
+/** 添加方式：template 从模板添加 / custom 自定义参数 */
+const addMode = ref("template")
+const templateCategory = ref("")
+const templateKey = ref("")
+const selectedTemplate = ref(null)
+/** 编辑内置参数时锁定名称与键名 */
+const lockKeyName = ref(false)
+
+/** 按分类过滤模板 */
+const filteredTemplates = computed(() => {
+  if (!templateCategory.value) return configTemplates
+  return configTemplates.filter(t => t.category === templateCategory.value)
+})
+
+/** 编辑时根据键名匹配已知模板，展示用途说明 */
+const editTemplate = computed(() => {
+  const key = form.value.configKey
+  return key ? findTemplateByKey(key) : null
+})
+
+/** 已存在键名集合，用于模板防重复 */
+const existingKeys = computed(() => new Set(configList.value.map(item => item.configKey)))
+
+function isTemplateExists(key) {
+  return existingKeys.value.has(key)
+}
 
 const data = reactive({
   form: {},
@@ -253,16 +386,49 @@ function handleSelectionChange(selection) {
 /** 新增按钮操作 */
 function handleAdd() {
   reset()
+  addMode.value = "template"
+  templateCategory.value = ""
+  templateKey.value = ""
+  selectedTemplate.value = null
+  lockKeyName.value = false
   open.value = true
   title.value = "添加参数"
+}
+
+/** 切换参数分类时重置模板选择 */
+function handleCategoryChange() {
+  templateKey.value = ""
+  selectedTemplate.value = null
+  form.value.configName = undefined
+  form.value.configKey = undefined
+  form.value.configValue = undefined
+  form.value.configType = "Y"
+  form.value.remark = undefined
+}
+
+/** 选择参数模板后自动填充表单 */
+function handleTemplateSelect(key) {
+  const t = configTemplates.find(x => x.key === key)
+  if (!t) return
+  selectedTemplate.value = t
+  form.value.configName = t.name
+  form.value.configKey = t.key
+  form.value.configType = t.systemBuiltIn
+  form.value.remark = t.remark
+  form.value.configValue = t.valueType === "number" ? Number(t.defaultValue) : t.defaultValue
 }
 
 /** 修改按钮操作 */
 function handleUpdate(row) {
   reset()
+  addMode.value = "custom"
+  templateCategory.value = ""
+  templateKey.value = ""
+  selectedTemplate.value = null
   const configId = row.configId || ids.value
   getConfig(configId).then(response => {
     form.value = response.data
+    lockKeyName.value = form.value.configType === "Y"
     open.value = true
     title.value = "修改参数"
   })
@@ -270,8 +436,15 @@ function handleUpdate(row) {
 
 /** 提交按钮 */
 function submitForm() {
+  if (addMode.value === "template" && !form.value.configId && !templateKey.value) {
+    proxy.$modal.msgWarning("请先选择参数模板")
+    return
+  }
   proxy.$refs["configRef"].validate(valid => {
     if (valid) {
+      if (typeof form.value.configValue !== "string") {
+        form.value.configValue = String(form.value.configValue)
+      }
       submitting.value = true
       if (form.value.configId != undefined) {
         updateConfig(form.value).then(response => {
@@ -321,3 +494,50 @@ function handleRefreshCache() {
 
 getList()
 </script>
+
+<style scoped lang="scss">
+.add-mode-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+
+  .add-mode-label {
+    font-size: 14px;
+    color: var(--el-text-color-regular);
+    flex-shrink: 0;
+  }
+}
+
+.tpl-desc {
+  width: 100%;
+  background: var(--el-color-primary-light-9);
+  border: 1px solid var(--el-color-primary-light-5);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+
+  .tpl-desc-text {
+    color: var(--el-text-color-primary);
+    line-height: 1.6;
+  }
+
+  .tpl-desc-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    color: var(--el-text-color-secondary);
+  }
+}
+
+.tpl-tag {
+  margin-left: 8px;
+}
+
+.tpl-edit-alert {
+  margin-bottom: 12px;
+}
+</style>

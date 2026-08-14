@@ -24,6 +24,7 @@ import com.orange.common.utils.StringUtils;
 import com.orange.common.utils.poi.ExcelUtil;
 import com.orange.quartz.domain.SysJob;
 import com.orange.quartz.service.ISysJobService;
+import com.orange.quartz.service.JobTemplateRegistry;
 import com.orange.quartz.util.CronUtils;
 import com.orange.quartz.util.ScheduleUtils;
 
@@ -38,6 +39,19 @@ public class SysJobController extends BaseController
 {
     @Autowired
     private ISysJobService jobService;
+
+    @Autowired
+    private JobTemplateRegistry jobTemplateRegistry;
+
+    /**
+     * 查询可用的任务模板（快捷创建用）
+     */
+    @PreAuthorize("@ss.hasPermi('monitor:job:add')")
+    @GetMapping("/templates")
+    public AjaxResult templates()
+    {
+        return success(jobTemplateRegistry.listTemplates());
+    }
 
     /**
      * 查询定时任务列表

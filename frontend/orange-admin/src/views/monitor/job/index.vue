@@ -139,87 +139,262 @@
       />
 
       <!-- 添加或修改定时任务对话框 -->
-      <el-dialog :title="title" v-model="open" width="min(820px, calc(100vw - 24px))" append-to-body>
-         <el-form ref="jobRef" :model="form" :rules="rules" label-width="120px">
-            <el-row>
-               <el-col :span="12">
-                  <el-form-item label="任务名称" prop="jobName">
-                     <el-input v-model="form.jobName" placeholder="请输入任务名称" />
-                  </el-form-item>
-               </el-col>
-               <el-col :span="12">
-                  <el-form-item label="任务分组" prop="jobGroup">
-                     <el-select v-model="form.jobGroup" placeholder="请选择">
-                        <el-option
-                           v-for="dict in sys_job_group"
-                           :key="dict.value"
-                           :label="dict.label"
-                           :value="dict.value"
-                        ></el-option>
-                     </el-select>
-                  </el-form-item>
-               </el-col>
-               <el-col :span="24">
-                  <el-form-item prop="invokeTarget">
-                     <template #label>
-                        <span>
-                           调用方法
-                           <el-tooltip placement="top">
-                              <template #content>
-                                 <div>
-                                    Bean调用示例：orangeTask.orangeParams('orange')
-                                    <br />Class类调用示例：com.orange.quartz.task.OrangeTask.orangeParams('orange')
-                                    <br />参数说明：支持字符串，布尔类型，长整型，浮点型，整型
-                                 </div>
-                              </template>
-                              <el-icon><question-filled /></el-icon>
-                           </el-tooltip>
-                        </span>
-                     </template>
-                     <el-input v-model="form.invokeTarget" placeholder="请输入调用目标字符串" />
-                  </el-form-item>
-               </el-col>
-               <el-col :span="24">
-                  <el-form-item label="cron表达式" prop="cronExpression">
-                     <el-input v-model="form.cronExpression" placeholder="请输入cron执行表达式">
-                        <template #append>
-                           <el-button type="primary" @click="handleShowCron">
-                              生成表达式
-                              <i class="el-icon-time el-icon--right"></i>
-                           </el-button>
+      <el-dialog :title="title" v-model="open" width="min(920px, calc(100vw - 24px))" append-to-body>
+         <div v-if="!form.jobId" class="add-mode-bar">
+            <span class="add-mode-label">创建方式：</span>
+            <el-radio-group v-model="addMode">
+               <el-radio-button value="quick">快捷创建</el-radio-button>
+               <el-radio-button value="custom">高级自定义</el-radio-button>
+            </el-radio-group>
+         </div>
+
+         <el-form ref="jobRef" :model="form" :rules="rules" label-width="110px">
+            <!-- 快捷创建模式（仅新增时显示） -->
+            <template v-if="addMode === 'quick' && !form.jobId">
+               <el-row>
+                  <el-col :span="12">
+                     <el-form-item label="任务分类">
+                        <el-select v-model="templateCategory" placeholder="请选择任务分类" style="width: 100%" @change="handleCategoryChange">
+                           <el-option v-for="c in jobCategories" :key="c.value" :label="c.label" :value="c.value" />
+                        </el-select>
+                     </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                     <el-form-item label="任务模板">
+                        <el-select v-model="templateKey" placeholder="请选择任务模板" filterable style="width: 100%" @change="handleTemplateSelect">
+                           <el-option v-for="t in filteredTemplates" :key="t.name" :label="t.name" :value="t.name" />
+                        </el-select>
+                     </el-form-item>
+                  </el-col>
+                  <el-col :span="24" v-if="selectedTemplate">
+                     <el-form-item label="用途说明">
+                        <div class="tpl-desc">
+                           <div class="tpl-desc-text">{{ selectedTemplate.description }}</div>
+                           <div class="tpl-desc-meta">
+                              <el-tag :type="riskTagType(selectedTemplate.riskLevel)" size="small">风险：{{ riskLabel(selectedTemplate.riskLevel) }}</el-tag>
+                              <span>调用：{{ selectedTemplate.beanName }}.{{ selectedTemplate.methodName }}()</span>
+                           </div>
+                        </div>
+                     </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                     <el-form-item label="任务名称" prop="jobName">
+                        <el-input v-model="form.jobName" placeholder="请输入任务名称" />
+                     </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                     <el-form-item label="任务分组" prop="jobGroup">
+                        <el-select v-model="form.jobGroup" placeholder="请选择">
+                           <el-option
+                              v-for="dict in sys_job_group"
+                              :key="dict.value"
+                              :label="dict.label"
+                              :value="dict.value"
+                           ></el-option>
+                        </el-select>
+                     </el-form-item>
+                  </el-col>
+                  <el-col :span="24" v-if="selectedTemplate && selectedTemplate.parameters.length">
+                     <el-divider content-position="left">方法参数</el-divider>
+                     <el-row>
+                        <el-col :span="12" v-for="p in selectedTemplate.parameters" :key="p.name">
+                           <el-form-item :label="p.label">
+                              <el-switch
+                                 v-if="p.type === 'boolean'"
+                                 v-model="paramValues[p.name]"
+                                 active-value="true"
+                                 inactive-value="false"
+                                 active-text="是"
+                                 inactive-text="否"
+                              />
+                              <el-input-number
+                                 v-else-if="p.type === 'int' || p.type === 'long'"
+                                 v-model="paramValues[p.name]"
+                                 :min="-99999999"
+                                 controls-position="right"
+                                 style="width: 100%"
+                              />
+                              <el-input-number
+                                 v-else-if="p.type === 'double'"
+                                 v-model="paramValues[p.name]"
+                                 :min="-99999999"
+                                 :precision="2"
+                                 :step="0.1"
+                                 controls-position="right"
+                                 style="width: 100%"
+                              />
+                              <el-input v-else v-model="paramValues[p.name]" :placeholder="'请输入' + p.label" />
+                           </el-form-item>
+                        </el-col>
+                     </el-row>
+                  </el-col>
+                  <el-col :span="24" v-if="invokeTargetText">
+                     <el-form-item label="调用目标">
+                        <el-input :model-value="invokeTargetText" readonly>
+                           <template #append>
+                              <el-tooltip content="由模板自动生成，提交时自动生效" placement="top">
+                                 <el-icon><question-filled /></el-icon>
+                              </el-tooltip>
+                           </template>
+                        </el-input>
+                     </el-form-item>
+                  </el-col>
+                  <el-col :span="24">
+                     <el-divider content-position="left">执行周期</el-divider>
+                  </el-col>
+                  <el-col :span="12">
+                     <el-form-item label="执行周期">
+                        <el-select v-model="cronForm.periodType" placeholder="请选择执行周期" style="width: 100%" @change="handlePeriodChange">
+                           <el-option v-for="p in cronPeriods" :key="p.value" :label="p.label" :value="p.value" />
+                        </el-select>
+                     </el-form-item>
+                  </el-col>
+                  <template v-for="f in currentPeriodFields" :key="f.key">
+                     <el-col :span="12">
+                        <el-form-item :label="f.label">
+                           <el-select v-if="f.type === 'week'" v-model="cronForm[f.key]" style="width: 100%" @change="handlePeriodChange">
+                              <el-option v-for="(cn, en) in weekOptions" :key="en" :label="cn" :value="en" />
+                           </el-select>
+                           <el-input-number
+                              v-else
+                              v-model="cronForm[f.key]"
+                              :min="f.min"
+                              :max="f.max"
+                              controls-position="right"
+                              style="width: 100%"
+                              @change="handlePeriodChange"
+                           />
+                        </el-form-item>
+                     </el-col>
+                  </template>
+                  <el-col :span="24" v-if="cronForm.periodType === 'custom'">
+                     <el-form-item label="Cron表达式" prop="cronExpression">
+                        <el-input v-model="cronForm.customCron" placeholder="请输入cron执行表达式" @change="handlePeriodChange">
+                           <template #append>
+                              <el-button type="primary" @click="handleShowCron">
+                                 生成表达式
+                                 <i class="el-icon-time el-icon--right"></i>
+                              </el-button>
+                           </template>
+                        </el-input>
+                     </el-form-item>
+                  </el-col>
+                  <el-col :span="24" v-if="generatedCron">
+                     <el-form-item label="Cron预览">
+                        <div class="cron-preview">
+                           <code class="cron-code">{{ generatedCron }}</code>
+                           <el-tag v-if="cronSummary" size="small" type="success">{{ cronSummary }}</el-tag>
+                        </div>
+                     </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                     <el-form-item label="执行策略" prop="misfirePolicy">
+                        <el-select v-model="form.misfirePolicy" style="width: 100%">
+                           <el-option label="立即执行一次" value="1" />
+                           <el-option label="执行一次后继续" value="2" />
+                           <el-option label="放弃错过的执行" value="3" />
+                        </el-select>
+                     </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                     <el-form-item label="是否并发">
+                        <el-tooltip content="禁止并发：上一次未结束时不会启动下一次，避免重复执行" placement="top">
+                           <el-switch v-model="form.concurrent" active-value="0" inactive-value="1" active-text="允许" inactive-text="禁止" />
+                        </el-tooltip>
+                     </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                     <el-form-item label="初始状态">
+                        <el-tooltip content="建议先暂停，保存后执行一次验证，再手动启用" placement="top">
+                           <el-switch v-model="form.status" active-value="0" inactive-value="1" active-text="正常" inactive-text="暂停" />
+                        </el-tooltip>
+                     </el-form-item>
+                  </el-col>
+               </el-row>
+            </template>
+
+            <!-- 高级自定义 / 编辑模式 -->
+            <template v-else>
+               <el-row>
+                  <el-col :span="12">
+                     <el-form-item label="任务名称" prop="jobName">
+                        <el-input v-model="form.jobName" placeholder="请输入任务名称" />
+                     </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                     <el-form-item label="任务分组" prop="jobGroup">
+                        <el-select v-model="form.jobGroup" placeholder="请选择">
+                           <el-option
+                              v-for="dict in sys_job_group"
+                              :key="dict.value"
+                              :label="dict.label"
+                              :value="dict.value"
+                           ></el-option>
+                        </el-select>
+                     </el-form-item>
+                  </el-col>
+                  <el-col :span="24">
+                     <el-form-item prop="invokeTarget">
+                        <template #label>
+                           <span>
+                              调用方法
+                              <el-tooltip placement="top">
+                                 <template #content>
+                                    <div>
+                                       Bean调用示例：orangeTask.orangeParams('orange')
+                                       <br />Class类调用示例：com.orange.quartz.task.OrangeTask.orangeParams('orange')
+                                       <br />参数说明：支持字符串，布尔类型，长整型，浮点型，整型
+                                    </div>
+                                 </template>
+                                 <el-icon><question-filled /></el-icon>
+                              </el-tooltip>
+                           </span>
                         </template>
-                     </el-input>
-                  </el-form-item>
-               </el-col>
-               <el-col :span="24" v-if="form.jobId !== undefined">
-                  <el-form-item label="状态">
-                     <el-radio-group v-model="form.status">
-                        <el-radio
-                           v-for="dict in sys_job_status"
-                           :key="dict.value"
-                           :value="dict.value"
-                        >{{ dict.label }}</el-radio>
-                     </el-radio-group>
-                  </el-form-item>
-               </el-col>
-               <el-col :span="12">
-                  <el-form-item label="执行策略" prop="misfirePolicy">
-                     <el-radio-group v-model="form.misfirePolicy">
-                        <el-radio-button value="1">立即执行</el-radio-button>
-                        <el-radio-button value="2">执行一次</el-radio-button>
-                        <el-radio-button value="3">放弃执行</el-radio-button>
-                     </el-radio-group>
-                  </el-form-item>
-               </el-col>
-               <el-col :span="12">
-                  <el-form-item label="是否并发" prop="concurrent">
-                     <el-radio-group v-model="form.concurrent">
-                        <el-radio-button value="0">允许</el-radio-button>
-                        <el-radio-button value="1">禁止</el-radio-button>
-                     </el-radio-group>
-                  </el-form-item>
-               </el-col>
-            </el-row>
+                        <el-input v-model="form.invokeTarget" placeholder="请输入调用目标字符串" />
+                     </el-form-item>
+                  </el-col>
+                  <el-col :span="24">
+                     <el-form-item label="cron表达式" prop="cronExpression">
+                        <el-input v-model="form.cronExpression" placeholder="请输入cron执行表达式">
+                           <template #append>
+                              <el-button type="primary" @click="handleShowCron">
+                                 生成表达式
+                                 <i class="el-icon-time el-icon--right"></i>
+                              </el-button>
+                           </template>
+                        </el-input>
+                     </el-form-item>
+                  </el-col>
+                  <el-col :span="24" v-if="form.jobId !== undefined">
+                     <el-form-item label="状态">
+                        <el-radio-group v-model="form.status">
+                           <el-radio
+                              v-for="dict in sys_job_status"
+                              :key="dict.value"
+                              :value="dict.value"
+                           >{{ dict.label }}</el-radio>
+                        </el-radio-group>
+                     </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                     <el-form-item label="执行策略" prop="misfirePolicy">
+                        <el-radio-group v-model="form.misfirePolicy">
+                           <el-radio-button value="1">立即执行</el-radio-button>
+                           <el-radio-button value="2">执行一次</el-radio-button>
+                           <el-radio-button value="3">放弃执行</el-radio-button>
+                        </el-radio-group>
+                     </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                     <el-form-item label="是否并发" prop="concurrent">
+                        <el-radio-group v-model="form.concurrent">
+                           <el-radio-button value="0">允许</el-radio-button>
+                           <el-radio-button value="1">禁止</el-radio-button>
+                        </el-radio-group>
+                     </el-form-item>
+                  </el-col>
+               </el-row>
+            </template>
          </el-form>
          <template #footer>
             <div class="dialog-footer">
@@ -241,7 +416,8 @@
 <script setup name="Job">
 import Crontab from '@/components/common/Crontab'
 import JobDetail from './detail'
-import { listJob, getJob, delJob, addJob, updateJob, runJob, changeJobStatus } from "@/api/modules/monitor/job"
+import { listJob, getJob, delJob, addJob, updateJob, runJob, changeJobStatus, listJobTemplates } from "@/api/modules/monitor/job"
+import { cronPeriods, defaultCronForm, buildCron } from "./jobCronBuilder"
 
 const router = useRouter()
 const { proxy } = getCurrentInstance()
@@ -260,6 +436,55 @@ const openView = ref(false)
 const openCron = ref(false)
 const expression = ref("")
 const submitting = ref(false)
+
+/** 创建方式：quick 快捷创建 / custom 高级自定义 */
+const addMode = ref("quick")
+/** 任务模板数据 */
+const templateList = ref([])
+const templateCategory = ref("")
+const templateKey = ref("")
+const selectedTemplate = ref(null)
+const paramValues = ref({})
+/** 执行周期表单 */
+const cronForm = ref(defaultCronForm())
+
+/** 星期选项 */
+const weekOptions = {
+  MON: '周一', TUE: '周二', WED: '周三', THU: '周四', FRI: '周五', SAT: '周六', SUN: '周日'
+}
+
+/** 分类中文映射 */
+const categoryLabels = { system: '系统任务', maintenance: '数据维护', message: '消息通知' }
+
+/** 任务分类（从模板列表动态派生） */
+const jobCategories = computed(() => {
+  const map = new Map()
+  templateList.value.forEach(t => {
+    if (!map.has(t.category)) map.set(t.category, categoryLabels[t.category] || t.category)
+  })
+  return Array.from(map, ([value, label]) => ({ value, label }))
+})
+
+/** 按分类过滤模板 */
+const filteredTemplates = computed(() => {
+  if (!templateCategory.value) return templateList.value
+  return templateList.value.filter(t => t.category === templateCategory.value)
+})
+
+/** 当前执行周期需要展示的参数控件 */
+const currentPeriodFields = computed(() => {
+  const p = cronPeriods.find(x => x.value === cronForm.value.periodType)
+  return p ? p.fields : []
+})
+
+/** 自动拼接的调用目标 */
+const invokeTargetText = computed(() => buildInvokeTarget())
+
+/** 生成的 Cron 表达式 */
+const generatedCron = computed(() => buildCron(cronForm.value).cron)
+
+/** Cron 中文摘要 */
+const cronSummary = computed(() => buildCron(cronForm.value).summary)
 
 const data = reactive({
   form: {},
@@ -304,11 +529,83 @@ function reset() {
     jobGroup: undefined,
     invokeTarget: undefined,
     cronExpression: undefined,
-    misfirePolicy: '1',
+    misfirePolicy: '3',
     concurrent: '1',
-    status: "0"
+    status: "1"
   }
   proxy.resetForm("jobRef")
+}
+
+/** 风险等级 → 标签类型 */
+function riskTagType(level) {
+  const map = { low: 'success', medium: 'warning', high: 'danger' }
+  return map[level] || 'info'
+}
+
+/** 风险等级 → 中文 */
+function riskLabel(level) {
+  const map = { low: '低', medium: '中', high: '高' }
+  return map[level] || level
+}
+
+/** 加载任务模板清单 */
+function loadTemplates() {
+  if (templateList.value.length) return
+  listJobTemplates().then(response => {
+    templateList.value = response.data || []
+  })
+}
+
+/** 切换任务分类时重置模板选择 */
+function handleCategoryChange() {
+  templateKey.value = ""
+  selectedTemplate.value = null
+  paramValues.value = {}
+  form.value.invokeTarget = undefined
+  form.value.jobName = undefined
+}
+
+/** 选择任务模板后自动填充 */
+function handleTemplateSelect(name) {
+  const t = templateList.value.find(x => x.name === name)
+  if (!t) return
+  selectedTemplate.value = t
+  const values = {}
+  ;(t.parameters || []).forEach(p => {
+    if (p.type === 'int' || p.type === 'long' || p.type === 'double') {
+      values[p.name] = Number(p.defaultValue) || 0
+    } else {
+      values[p.name] = p.defaultValue ?? ''
+    }
+  })
+  paramValues.value = values
+  form.value.jobName = t.name
+  form.value.invokeTarget = buildInvokeTarget()
+}
+
+/** 拼接调用目标字符串 */
+function buildInvokeTarget() {
+  const t = selectedTemplate.value
+  if (!t) return ''
+  const params = t.parameters || []
+  if (!params.length) return `${t.beanName}.${t.methodName}()`
+  const args = params.map(p => {
+    const v = paramValues.value[p.name]
+    switch (p.type) {
+      case 'string': return `'${v ?? ''}'`
+      case 'boolean': return v === 'true' || v === true ? 'true' : 'false'
+      case 'long': return `${Number(v) || 0}L`
+      case 'double': return `${Number(v) || 0}D`
+      default: return `${Number(v) || 0}`
+    }
+  })
+  return `${t.beanName}.${t.methodName}(${args.join(', ')})`
+}
+
+/** 执行周期变化时同步 Cron */
+function handlePeriodChange() {
+  const { cron } = buildCron(cronForm.value)
+  form.value.cronExpression = cron
 }
 
 /** 搜索按钮操作 */
@@ -361,13 +658,21 @@ function handleView(row) {
 
 /** cron表达式按钮操作 */
 function handleShowCron() {
-  expression.value = form.value.cronExpression
+  if (addMode.value === 'quick' && cronForm.value.periodType === 'custom') {
+    expression.value = cronForm.value.customCron
+  } else {
+    expression.value = form.value.cronExpression
+  }
   openCron.value = true
 }
 
 /** 确定后回传值 */
 function crontabFill(value) {
   form.value.cronExpression = value
+  if (addMode.value === 'quick' && cronForm.value.periodType === 'custom') {
+    cronForm.value.customCron = value
+    handlePeriodChange()
+  }
 }
 
 /** 任务日志列表查询 */
@@ -379,6 +684,14 @@ function handleJobLog(row) {
 /** 新增按钮操作 */
 function handleAdd() {
   reset()
+  addMode.value = "quick"
+  templateCategory.value = ""
+  templateKey.value = ""
+  selectedTemplate.value = null
+  paramValues.value = {}
+  cronForm.value = defaultCronForm()
+  handlePeriodChange()
+  loadTemplates()
   open.value = true
   title.value = "添加任务"
 }
@@ -386,6 +699,11 @@ function handleAdd() {
 /** 修改按钮操作 */
 function handleUpdate(row) {
   reset()
+  addMode.value = "custom"
+  templateCategory.value = ""
+  templateKey.value = ""
+  selectedTemplate.value = null
+  paramValues.value = {}
   const jobId = row.jobId || ids.value
   getJob(jobId).then(response => {
     form.value = response.data
@@ -396,6 +714,15 @@ function handleUpdate(row) {
 
 /** 提交按钮 */
 function submitForm() {
+  if (addMode.value === "quick" && !form.value.jobId) {
+    if (!selectedTemplate.value) {
+      proxy.$modal.msgWarning("请先选择任务模板")
+      return
+    }
+    form.value.invokeTarget = buildInvokeTarget()
+    const { cron } = buildCron(cronForm.value)
+    form.value.cronExpression = cron
+  }
   proxy.$refs["jobRef"].validate(valid => {
     if (valid) {
       submitting.value = true
@@ -440,3 +767,57 @@ function handleExport() {
 
 getList()
 </script>
+
+<style scoped lang="scss">
+.add-mode-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+
+  .add-mode-label {
+    font-size: 14px;
+    color: var(--el-text-color-regular);
+    flex-shrink: 0;
+  }
+}
+
+.tpl-desc {
+  width: 100%;
+  background: var(--el-color-primary-light-9);
+  border: 1px solid var(--el-color-primary-light-5);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+
+  .tpl-desc-text {
+    color: var(--el-text-color-primary);
+    line-height: 1.6;
+  }
+
+  .tpl-desc-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    color: var(--el-text-color-secondary);
+  }
+}
+
+.cron-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .cron-code {
+    font-family: Consolas, Monaco, monospace;
+    font-size: 13px;
+    color: var(--el-color-primary);
+    background: var(--el-fill-color-light);
+    border-radius: 4px;
+    padding: 6px 10px;
+  }
+}
+</style>
