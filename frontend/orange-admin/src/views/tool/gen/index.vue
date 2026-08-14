@@ -101,7 +101,7 @@
       <el-table-column label="更新时间" align="center" prop="updateTime" width="160" sortable="custom" :sort-orders="['descending', 'ascending']" />
       <el-table-column label="操作" align="center" width="330" class-name="small-padding fixed-width">
         <template #default="scope">
-          <el-tooltip content="预览" placement="top">
+          <el-tooltip content="页面预览" placement="top">
             <el-button link type="primary" icon="View" @click="handlePreview(scope.row)" v-hasPermi="['tool:gen:preview']"></el-button>
           </el-tooltip>
           <el-tooltip content="编辑" placement="top">
@@ -127,16 +127,27 @@
       @pagination="getList"
     />
     <!-- 预览界面 -->
-    <el-dialog :title="preview.title" v-model="preview.open" width="80%" top="5vh" append-to-body class="scrollbar">
-      <el-tabs v-model="preview.activeName">
-        <el-tab-pane
-          v-for="(value, key) in preview.data"
-          :label="key.substring(key.lastIndexOf('/')+1,key.indexOf('.vm'))"
-          :name="key.substring(key.lastIndexOf('/')+1,key.indexOf('.vm'))"
-          :key="value"
-        >
-          <el-link underline="never" icon="DocumentCopy" v-copyText="value" v-copyText:callback="copyTextSuccess" style="float:right">&nbsp;复制</el-link>
-          <pre>{{ value }}</pre>
+    <el-dialog :title="preview.title" v-model="preview.open" width="80%" top="5vh" append-to-body class="scrollbar" destroy-on-close>
+      <el-tabs v-model="preview.activeTab">
+        <el-tab-pane label="页面预览" name="page">
+          <page-preview
+            v-if="preview.open && preview.info"
+            :info="preview.info"
+            :columns="preview.columns"
+          />
+        </el-tab-pane>
+        <el-tab-pane label="源码预览" name="code">
+          <el-tabs v-model="preview.activeName">
+            <el-tab-pane
+              v-for="(value, key) in preview.data"
+              :label="key.substring(key.lastIndexOf('/')+1,key.indexOf('.vm'))"
+              :name="key.substring(key.lastIndexOf('/')+1,key.indexOf('.vm'))"
+              :key="value"
+            >
+              <el-link underline="never" icon="DocumentCopy" v-copyText="value" v-copyText:callback="copyTextSuccess" style="float:right">&nbsp;复制</el-link>
+              <pre>{{ value }}</pre>
+            </el-tab-pane>
+          </el-tabs>
         </el-tab-pane>
       </el-tabs>
     </el-dialog>
@@ -146,10 +157,11 @@
 </template>
 
 <script setup name="Gen">
-import { listTable, previewTable, delTable, genCode, synchDb } from "@/api/modules/tool/gen"
+import { listTable, previewTable, getGenTable, delTable, genCode, synchDb } from "@/api/modules/tool/gen"
 import router from "@/router"
 import importTable from "./importTable"
 import createTable from "./createTable"
+import pagePreview from "./pagePreview"
 
 const route = useRoute()
 const { proxy } = getCurrentInstance()
@@ -179,7 +191,10 @@ const data = reactive({
     open: false,
     title: "代码预览",
     data: {},
-    activeName: "domain.java"
+    activeName: "domain.java",
+    activeTab: "page",
+    info: null,
+    columns: []
   }
 })
 
@@ -264,6 +279,11 @@ function handlePreview(row) {
     preview.value.data = response.data
     preview.value.open = true
     preview.value.activeName = "domain.java"
+    preview.value.activeTab = "page"
+  })
+  getGenTable(row.tableId).then(response => {
+    preview.value.info = response.data.info
+    preview.value.columns = response.data.rows
   })
 }
 
